@@ -19,12 +19,20 @@ from sklearn.preprocessing import LabelEncoder
 
 st.title("CricUpbeat Statistics")
 
+
+
 st.sidebar.title("📈Statictics")
 predict = st.sidebar.button("🏆Win Predictor")
+bat_bar = st.sidebar.button("🏏Batsman Analysis")
+bowl_bar = st.sidebar.button("🥎Bowler Analysis")
+field_bar = st.sidebar.button("🧤Fielder Analysis")
+team  = st.sidebar.button('🏟Match Analysis')
+runs_val = st.sidebar.button("💯Score Analysis")
+powerplay = st.sidebar.button("✋Powerplay Analysis")
+avg = st.sidebar.button("📊Average Score Analysis")
+fantasy = st.sidebar.button("🎯Fantasy team best players")
 
 
-
-predict_main = st.button("🏆WIN PREDICTOR")
 
 
 @st.cache(persist = True,allow_output_mutation=True)
@@ -35,7 +43,7 @@ def data():
     return df,mat
 deliveries,matches = data()
 
-@st.cache(persist = True,allow_output_mutation = True)
+@st.cache(persist = True,allow_output_mutation=True)
 def preprocess(deliveries,matches):
     s_man_of_match = (matches.groupby(matches.player_of_match).player_of_match.count().
                   sort_values(ascending=False).head(15))
@@ -256,7 +264,7 @@ def preprocess(deliveries,matches):
 s_man_of_match,df_man_of_match,cen,half_cen,df_big,df_strike_rate,df_runs_per_match,df_total_runs,df_sixes,df_four,df_batsman_stat,batsman_stats,condition_catch,condition_run,condition_stump,condition_caught_bowled,s_catch,s_run,s_stump,s_caught_bowled,df_catch,df_run,df_stump,df_caught_bowled,df_field,field_stats,condition,df_bowlers,high,over_count,overs,bowlers,economy_rates,maiden_over,maidens,hauls,bowlers_stats,centuries,half_centuries,fours,sixes,runs,final,best_batsman,x,y,z,field,field1,field2,best_fielder,haul5,haul4,wicket,caught_bowled,dismissals,e1,e2,e3,e4,e5,e6,e7,m,eco,final,final_bowl,best_bowler,x_bowl,y_bowl,z_bowl,w_bowl,season_winner,finals,most_finals,xyz = preprocess(deliveries,matches)
 
 @st.cache(persist = True,allow_output_mutation=True)
-def pre(matches,team1,team2,ven):
+def predictor_(matches,team1,team2,ven):
     df = matches[['team1','team2','toss_decision','winner']]
     df['winner'].fillna(df['team1'],inplace = True)
     lbl = LabelEncoder()
@@ -281,38 +289,21 @@ def pre(matches,team1,team2,ven):
 
 st.title("🏆Win Predictor")
 val = np.asarray(['CSK','DC','KKR','MI','RCB','SRH','RR','KXIP'],dtype = object)
-
+venue = 'Home'
 ra = random.randint(57,63)
-team1 = st.selectbox("Select Team 1",val)
+team1 = st.selectbox("Select Home Team ",val)
 if(team1):
-    team2 = st.selectbox("Select Team 2",np.delete(val,list(val).index(team1)))
+    team2 = st.selectbox("Select Away Team ",np.delete(val,list(val).index(team1)))
     if(team2):
-        venue = st.selectbox("Select Venue of Team 1",np.asarray(['Home','Away']))
-        if(venue):
-            sc = st.button("Predict")
-            if(sc):
-                winner = pre(matches,team1,team2,venue)
-                st.write(winner[0]+" has "+str(ra) +"% chances of winning the match.")
+        sc = st.button("Predict")
+        if(sc):
+            winner = predictor_(matches,team1,team2,venue)
+            st.write(winner[0]+" has "+str(ra) +"% chances of winning the match.")
 
 
-bat_bar = st.sidebar.button("🏏Batsman Analysis")
-bowl_bar = st.sidebar.button("🥎Bowler Analysis")
-field_bar = st.sidebar.button("🧤Fielder Analysis")
-team  = st.sidebar.button('🏟Match Analysis')
-runs_val = st.sidebar.button("💯Score Analysis")
-powerplay = st.sidebar.button("✋Powerplay Analysis")
-avg = st.sidebar.button("📊Average Score Analysis")
-fantasy = st.sidebar.button("🎯Fantasy team best players")
 
-bat_bar_main = st.button("🏏BATSMAN ANALYSIS")
-bowl_bar_main = st.button("🥎BOWLER ANALYSIS")
-field_bar_main = st.button("🧤FIELDER ANALYSIS")
-team_main  = st.button('🏟MATCH ANALYSIS')
-runs_val_main = st.button("💯SCORE ANALYSIS")
-powerplay_main = st.button("✋POWERPLAY ANALYSIS")
-avg_main = st.button("📊AVERAGE SCORE ANALYSIS")
-fantasy_main = st.button("🎯FANTASY TEAM BEST PLAYERS ")
-if(predict or predict_main):
+
+if(predict):
     st.title("Winner Analysis")
     st.markdown("Teams with highest No. of Trophies")
     trace0 = go.Pie(labels=season_winner['team'], values=season_winner['winner'],
@@ -347,7 +338,7 @@ if(predict or predict_main):
 
 
 
-if(bat_bar or bat_bar_main):
+if(bat_bar):
     data = [go.Bar(x=df_man_of_match['player_of_match'],
                    y=df_man_of_match["times"],
                    marker=dict(color='#b4122c'),opacity=0.75)]
@@ -498,7 +489,7 @@ if(bat_bar or bat_bar_main):
     fig = go.Figure(data=data, layout=layout)
     st.plotly_chart(fig,use_container_width = True)
 
-if(field_bar or field_bar_main):
+if(field_bar ):
     st.title("Fielder Analysis")
     st.markdown("Fielderes with maximum catches")
     trace1 = go.Bar(x=field_stats.fielder.head(15),y=field_stats.catch,
@@ -598,7 +589,7 @@ if(field_bar or field_bar_main):
     )
     fig = go.Figure(data=data, layout=layout)
     st.plotly_chart(fig,use_container_width = True)
-if(bowl_bar or bowl_bar_main):
+if(bowl_bar):
     st.title("Bowler Analysis")
     st.markdown("Wicket houls analysis")
 
@@ -777,7 +768,7 @@ if(bowl_bar or bowl_bar_main):
     st.plotly_chart(fig,use_container_width=True)
 
 
-if(fantasy or fantasy_main):
+if(fantasy ):
     st.title("Best Players for fantasy team")
     best_batsman = best_batsman.rename(columns={"batsman": "player"})
     best_bowler = best_bowler.rename(columns={"bowler": "player"})
@@ -846,7 +837,7 @@ ump=pd.concat([matches['umpire1'],matches['umpire2']])
 ump=ump.value_counts()
 umps=ump.to_frame().reset_index()
 
-if(team or team_main):
+if(team):
     st.title("Team Analysis")
     st.title("Win percentages of each team")
     trace1 = go.Bar(x=matches_played.index,y=matches_played['Total Matches'],
@@ -942,7 +933,7 @@ list(slices)
 labels=['No','Yes']
 
 
-if(runs_val or runs_val_main):
+if(runs_val):
     fig = {"data" : [{"x" : season["season"],"y" : season["total_runs"],
                       "name" : "Total Run","marker" : {"color" : "lightblue","size": 12},
                       "line": {"width" : 3},"type" : "scatter","mode" : "lines+markers" },
@@ -1036,7 +1027,7 @@ runs_per_over = deliveries.pivot_table(index=['over'],columns='batting_team',val
 runs_per_over.reset_index(inplace=True)
 runs_per_over.drop(['KTK','PW','RPS','GL'],axis=1,inplace=True)
 
-if(avg or avg_main):
+if(avg ):
     trace1 = go.Scatter(x=csk['season'],y = csk['batting_first'],name='Batting First')
     trace2 = go.Scatter(x=csk['season'],y = csk['batting_second'],name='Batting Second')
     trace3 = go.Scatter(x=rr['season'],y = rr['batting_first'],name='Batting First')
@@ -1124,7 +1115,7 @@ powerplay_dismissals_first=powerplay_dismissals_first.reset_index()
 powerplay_dismissals_second=powerplay_data[ powerplay_data['inning']==2].dropna(subset=['dismissal_kind']).groupby(['season','match_id','inning'])['dismissal_kind'].agg(['count']).reset_index().groupby('season')['count'].mean()
 powerplay_dismissals_second=powerplay_dismissals_second.reset_index()
 
-if(powerplay or powerplay_main):
+if(powerplay):
     st.title("Powerplay Analysis")
     fig = {"data" : [{"x" : inn1["index"],"y" : inn1["sum"],"marker" : {"color" : "blue","size": 2},
                       "line": {"width" : 1.5},"type" : "scatter","mode" : "lines" },
