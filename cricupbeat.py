@@ -21,25 +21,11 @@ st.title("CricUpbeat Statistics")
 
 st.sidebar.title("📈Statictics")
 predict = st.sidebar.button("🏆Win Predictor")
-bat_bar = st.sidebar.button("🏏Batsman Analysis")
-bowl_bar = st.sidebar.button("🥎Bowler Analysis")
-field_bar = st.sidebar.button("🧤Fielder Analysis")
-team  = st.sidebar.button('🏟Match Analysis')
-runs_val = st.sidebar.button("💯Score Analysis")
-powerplay = st.sidebar.button("✋Powerplay Analysis")
-avg = st.sidebar.button("📊Average Score Analysis")
-fantasy = st.sidebar.button("🎯Fantasy team best players")
+
 
 
 predict_main = st.button("🏆WIN PREDICTOR")
-bat_bar_main = st.button("🏏BATSMAN ANALYSIS")
-bowl_bar_main = st.button("🥎BOWLER ANALYSIS")
-field_bar_main = st.button("🧤FIELDER ANALYSIS")
-team_main  = st.button('🏟MATCH ANALYSIS')
-runs_val_main = st.button("💯SCORE ANALYSIS")
-powerplay_main = st.button("✋POWERPLAY ANALYSIS")
-avg_main = st.button("📊AVERAGE SCORE ANALYSIS")
-fantasy_main = st.button("🎯FANTASY TEAM BEST PLAYERS ")
+
 
 @st.cache(persist = True,allow_output_mutation=True)
 def data():
@@ -49,221 +35,227 @@ def data():
     return df,mat
 deliveries,matches = data()
 
-s_man_of_match = (matches.groupby(matches.player_of_match).player_of_match.count().
-              sort_values(ascending=False).head(15))
+@st.cache(persist = True,allow_output_mutation = True)
+def preprocess(deliveries,matches):
+    s_man_of_match = (matches.groupby(matches.player_of_match).player_of_match.count().
+                  sort_values(ascending=False).head(15))
 
-df_man_of_match =(s_man_of_match.to_frame().rename
-                  (columns = {"player_of_match": "times"}).reset_index())
+    df_man_of_match =(s_man_of_match.to_frame().rename
+                      (columns = {"player_of_match": "times"}).reset_index())
 
-cen = deliveries.groupby(['batsman','match_id']).agg({'batsman_runs':'sum'})
-cen = cen[cen['batsman_runs']>=100]
-cen = cen.groupby(['batsman']).agg({'count'})
-cen.columns = cen.columns.droplevel()
-cen = cen.sort_values(by='count',ascending=False).reset_index()
+    cen = deliveries.groupby(['batsman','match_id']).agg({'batsman_runs':'sum'})
+    cen = cen[cen['batsman_runs']>=100]
+    cen = cen.groupby(['batsman']).agg({'count'})
+    cen.columns = cen.columns.droplevel()
+    cen = cen.sort_values(by='count',ascending=False).reset_index()
 
-half_cen = deliveries.groupby(['batsman','match_id']).agg({'batsman_runs':'sum'})
-half_cen = half_cen[half_cen['batsman_runs']>=50]
-half_cen = half_cen[half_cen['batsman_runs']<100]
-half_cen = half_cen.groupby(['batsman']).agg({'count'})
-half_cen.columns = half_cen.columns.droplevel()
-half_cen = half_cen.sort_values(by='count',ascending=False).reset_index()
+    half_cen = deliveries.groupby(['batsman','match_id']).agg({'batsman_runs':'sum'})
+    half_cen = half_cen[half_cen['batsman_runs']>=50]
+    half_cen = half_cen[half_cen['batsman_runs']<100]
+    half_cen = half_cen.groupby(['batsman']).agg({'count'})
+    half_cen.columns = half_cen.columns.droplevel()
+    half_cen = half_cen.sort_values(by='count',ascending=False).reset_index()
 
-df_big = pd.merge(cen,half_cen, on='batsman',how='right')
-df_big = df_big.fillna(0)
+    df_big = pd.merge(cen,half_cen, on='batsman',how='right')
+    df_big = df_big.fillna(0)
 
-df_strike_rate = deliveries.groupby(['batsman']).agg({'ball':'count','batsman_runs':'mean'}).sort_values(by='batsman_runs',ascending=False)
-df_strike_rate.rename(columns ={'batsman_runs' : 'strike rate'}, inplace=True)
+    df_strike_rate = deliveries.groupby(['batsman']).agg({'ball':'count','batsman_runs':'mean'}).sort_values(by='batsman_runs',ascending=False)
+    df_strike_rate.rename(columns ={'batsman_runs' : 'strike rate'}, inplace=True)
 
-df_runs_per_match = deliveries.groupby(['batsman','match_id']).agg({'batsman_runs':'sum'})
-df_total_runs = df_runs_per_match.groupby(['batsman']).agg({'sum' ,'mean','count'})
-df_total_runs.rename(columns ={'sum' : 'batsman run','count' : 'match count','mean' :'average score'}, inplace=True)
-df_total_runs.columns = df_total_runs.columns.droplevel()
+    df_runs_per_match = deliveries.groupby(['batsman','match_id']).agg({'batsman_runs':'sum'})
+    df_total_runs = df_runs_per_match.groupby(['batsman']).agg({'sum' ,'mean','count'})
+    df_total_runs.rename(columns ={'sum' : 'batsman run','count' : 'match count','mean' :'average score'}, inplace=True)
+    df_total_runs.columns = df_total_runs.columns.droplevel()
 
-df_sixes = deliveries[['batsman','batsman_runs']][deliveries.batsman_runs==6].groupby(['batsman']).agg({'batsman_runs':'count'})
-df_four = deliveries[['batsman','batsman_runs']][deliveries.batsman_runs==4].groupby(['batsman']).agg({'batsman_runs':'count'})
+    df_sixes = deliveries[['batsman','batsman_runs']][deliveries.batsman_runs==6].groupby(['batsman']).agg({'batsman_runs':'count'})
+    df_four = deliveries[['batsman','batsman_runs']][deliveries.batsman_runs==4].groupby(['batsman']).agg({'batsman_runs':'count'})
 
-df_batsman_stat = pd.merge(pd.merge(pd.merge(df_strike_rate,df_total_runs, left_index=True, right_index=True),
-                                    df_sixes, left_index=True, right_index=True),df_four, left_index=True, right_index=True)
+    df_batsman_stat = pd.merge(pd.merge(pd.merge(df_strike_rate,df_total_runs, left_index=True, right_index=True),
+                                        df_sixes, left_index=True, right_index=True),df_four, left_index=True, right_index=True)
 
-df_batsman_stat.rename(columns = {'ball' : 'Ball', 'strike rate':'Strike Rate','batsman run' : 'Batsman Run','match count' : 'Match Count',
-                                  'average score' : 'Average score' ,'batsman_runs_x' :'Six','batsman_runs_y':'Four'},inplace=True)
-df_batsman_stat['Strike Rate'] = df_batsman_stat['Strike Rate']*100
-df_batsman_stat = df_batsman_stat.sort_values(by='Batsman Run',ascending=False).reset_index()
+    df_batsman_stat.rename(columns = {'ball' : 'Ball', 'strike rate':'Strike Rate','batsman run' : 'Batsman Run','match count' : 'Match Count',
+                                      'average score' : 'Average score' ,'batsman_runs_x' :'Six','batsman_runs_y':'Four'},inplace=True)
+    df_batsman_stat['Strike Rate'] = df_batsman_stat['Strike Rate']*100
+    df_batsman_stat = df_batsman_stat.sort_values(by='Batsman Run',ascending=False).reset_index()
 
-batsman_stats = pd.merge(df_batsman_stat,df_big, on='batsman',how='left').fillna(0)
-batsman_stats.rename(columns = {'count_x' : '100s', 'count_y' : '50s'},inplace=True)
+    batsman_stats = pd.merge(df_batsman_stat,df_big, on='batsman',how='left').fillna(0)
+    batsman_stats.rename(columns = {'count_x' : '100s', 'count_y' : '50s'},inplace=True)
 
-condition_catch = (deliveries.dismissal_kind == 'caught')
-condition_run= (deliveries.dismissal_kind == 'run out')
-condition_stump= (deliveries.dismissal_kind == 'stumped')
-condition_caught_bowled = (deliveries.dismissal_kind == 'caught and bowled')
+    condition_catch = (deliveries.dismissal_kind == 'caught')
+    condition_run= (deliveries.dismissal_kind == 'run out')
+    condition_stump= (deliveries.dismissal_kind == 'stumped')
+    condition_caught_bowled = (deliveries.dismissal_kind == 'caught and bowled')
 
-s_catch = deliveries.loc[condition_catch,:].groupby(deliveries.fielder).dismissal_kind.count().sort_values(ascending=False)
-s_run = deliveries.loc[condition_run,:].groupby(deliveries.fielder).dismissal_kind.count().sort_values(ascending=False)
-s_stump = deliveries.loc[condition_stump,:].groupby(deliveries.fielder).dismissal_kind.count().sort_values(ascending=False)
-s_caught_bowled = deliveries.loc[condition_caught_bowled,:].groupby(deliveries.bowler).dismissal_kind.count().sort_values(ascending=False)
+    s_catch = deliveries.loc[condition_catch,:].groupby(deliveries.fielder).dismissal_kind.count().sort_values(ascending=False)
+    s_run = deliveries.loc[condition_run,:].groupby(deliveries.fielder).dismissal_kind.count().sort_values(ascending=False)
+    s_stump = deliveries.loc[condition_stump,:].groupby(deliveries.fielder).dismissal_kind.count().sort_values(ascending=False)
+    s_caught_bowled = deliveries.loc[condition_caught_bowled,:].groupby(deliveries.bowler).dismissal_kind.count().sort_values(ascending=False)
 
-df_catch= s_catch.to_frame().reset_index().rename(columns ={'dismissal_kind' : 'catch'})
-df_run= s_run.to_frame().reset_index().rename(columns ={'dismissal_kind' : 'run_out'})
-df_stump= s_stump.to_frame().reset_index().rename(columns ={'dismissal_kind' : 'stump'})
-df_caught_bowled = s_caught_bowled.to_frame().reset_index().rename(columns ={'dismissal_kind' : 'caught and bowled'})
+    df_catch= s_catch.to_frame().reset_index().rename(columns ={'dismissal_kind' : 'catch'})
+    df_run= s_run.to_frame().reset_index().rename(columns ={'dismissal_kind' : 'run_out'})
+    df_stump= s_stump.to_frame().reset_index().rename(columns ={'dismissal_kind' : 'stump'})
+    df_caught_bowled = s_caught_bowled.to_frame().reset_index().rename(columns ={'dismissal_kind' : 'caught and bowled'})
 
-df_field = pd.merge(pd.merge(df_catch,df_run,on='fielder', how='outer'),df_stump,on='fielder',how='outer')
-field_stats = df_field[~df_field['fielder'].str.contains("(sub)")].reset_index().drop(['index'],axis=1).fillna(0)
+    df_field = pd.merge(pd.merge(df_catch,df_run,on='fielder', how='outer'),df_stump,on='fielder',how='outer')
+    field_stats = df_field[~df_field['fielder'].str.contains("(sub)")].reset_index().drop(['index'],axis=1).fillna(0)
 
-condition = ((deliveries.dismissal_kind.notnull()) &(deliveries.dismissal_kind != 'run out')&
-            (deliveries.dismissal_kind != 'retired hurt' )&(deliveries.dismissal_kind != 'hit wicket')
-            &(deliveries.dismissal_kind != 'obstructing the field')&(deliveries.dismissal_kind != 'caught and bowled'))
+    condition = ((deliveries.dismissal_kind.notnull()) &(deliveries.dismissal_kind != 'run out')&
+                (deliveries.dismissal_kind != 'retired hurt' )&(deliveries.dismissal_kind != 'hit wicket')
+                &(deliveries.dismissal_kind != 'obstructing the field')&(deliveries.dismissal_kind != 'caught and bowled'))
 
-df_bowlers = deliveries.loc[condition,:].groupby(deliveries.bowler).dismissal_kind.count().sort_values(ascending=False).reset_index()
-df_bowlers = pd.merge(df_bowlers,df_caught_bowled , on='bowler',how='left').fillna(0)
+    df_bowlers = deliveries.loc[condition,:].groupby(deliveries.bowler).dismissal_kind.count().sort_values(ascending=False).reset_index()
+    df_bowlers = pd.merge(df_bowlers,df_caught_bowled , on='bowler',how='left').fillna(0)
 
-high=deliveries.groupby(['match_id', 'bowler']).agg({'total_runs':'sum'}).reset_index()
+    high=deliveries.groupby(['match_id', 'bowler']).agg({'total_runs':'sum'}).reset_index()
 
-over_count=deliveries.groupby(['match_id', 'bowler','over']).agg({'total_runs':'sum'}).reset_index()
-overs = over_count.groupby(['match_id','bowler']).agg({'over':'count'}).reset_index()
-overs = overs[overs['over']>=2]
+    over_count=deliveries.groupby(['match_id', 'bowler','over']).agg({'total_runs':'sum'}).reset_index()
+    overs = over_count.groupby(['match_id','bowler']).agg({'over':'count'}).reset_index()
+    overs = overs[overs['over']>=2]
 
-bowlers = pd.merge(high,overs,on=['match_id', 'bowler'], how='right')
-bowlers['economy'] = bowlers['total_runs']/bowlers['over']
-bowlers['eco_range'] = pd.cut(bowlers['economy'], [0, 4, 5, 6, 9, 10, 11, 30], labels=['below4', '4-5', '5-6', '6-9','9-10','10-11','above11'])
+    bowlers = pd.merge(high,overs,on=['match_id', 'bowler'], how='right')
+    bowlers['economy'] = bowlers['total_runs']/bowlers['over']
+    bowlers['eco_range'] = pd.cut(bowlers['economy'], [0, 4, 5, 6, 9, 10, 11, 30], labels=['below4', '4-5', '5-6', '6-9','9-10','10-11','above11'])
 
-bowlers = pd.concat([bowlers,pd.get_dummies(bowlers['eco_range'], prefix='eco')],axis=1)
-economy_rates=bowlers.groupby(['bowler']).agg({'eco_below4':'sum','eco_4-5':'sum','eco_5-6':'sum','eco_6-9':'sum','eco_9-10':'sum','eco_10-11':'sum','eco_above11':'sum'}).reset_index()
+    bowlers = pd.concat([bowlers,pd.get_dummies(bowlers['eco_range'], prefix='eco')],axis=1)
+    economy_rates=bowlers.groupby(['bowler']).agg({'eco_below4':'sum','eco_4-5':'sum','eco_5-6':'sum','eco_6-9':'sum','eco_9-10':'sum','eco_10-11':'sum','eco_above11':'sum'}).reset_index()
 
-maiden_over = over_count[over_count['total_runs']==0]
-maidens = maiden_over['bowler'].value_counts().to_frame().reset_index().rename({'index':'bowler','bowler':'maiden_overs'},axis=1)
+    maiden_over = over_count[over_count['total_runs']==0]
+    maidens = maiden_over['bowler'].value_counts().to_frame().reset_index().rename({'index':'bowler','bowler':'maiden_overs'},axis=1)
 
-hauls=deliveries.groupby(['match_id', 'bowler']).agg({'player_dismissed':'count'}).reset_index()
-hauls = hauls[hauls['player_dismissed']>=4]
-hauls['haul'] = pd.cut(hauls['player_dismissed'], [0,4,8], labels=['4', '5'])
-hauls = pd.concat([hauls,pd.get_dummies(hauls['haul'], prefix='haul')],axis=1)
-hauls.drop(['player_dismissed','haul'],inplace=True,axis=1)
-hauls=hauls.groupby(['bowler']).agg({'haul_4':'sum','haul_5':'sum'}).reset_index()
+    hauls=deliveries.groupby(['match_id', 'bowler']).agg({'player_dismissed':'count'}).reset_index()
+    hauls = hauls[hauls['player_dismissed']>=4]
+    hauls['haul'] = pd.cut(hauls['player_dismissed'], [0,4,8], labels=['4', '5'])
+    hauls = pd.concat([hauls,pd.get_dummies(hauls['haul'], prefix='haul')],axis=1)
+    hauls.drop(['player_dismissed','haul'],inplace=True,axis=1)
+    hauls=hauls.groupby(['bowler']).agg({'haul_4':'sum','haul_5':'sum'}).reset_index()
 
-bowlers_stats = pd.merge(pd.merge(pd.merge(economy_rates,maidens,on='bowler', how='left'),df_bowlers,on='bowler',how='left'),hauls,on='bowler',how='right').fillna(0)
-bowlers_stats.rename(columns ={'dismissal_kind' : 'wickets'},inplace=True)
-centuries = batsman_stats.sort_values(by='100s').tail(15)
-half_centuries = batsman_stats.sort_values(by='50s').tail(15)
+    bowlers_stats = pd.merge(pd.merge(pd.merge(economy_rates,maidens,on='bowler', how='left'),df_bowlers,on='bowler',how='left'),hauls,on='bowler',how='right').fillna(0)
+    bowlers_stats.rename(columns ={'dismissal_kind' : 'wickets'},inplace=True)
+    centuries = batsman_stats.sort_values(by='100s').tail(15)
+    half_centuries = batsman_stats.sort_values(by='50s').tail(15)
 
-cen = batsman_stats[['100s','50s','batsman']]
-cen['points'] = (cen['100s']*8) + (cen['50s']*4)
-cen.sort_values(by='points',inplace=True,ascending=False)
+    cen = batsman_stats[['100s','50s','batsman']]
+    cen['points'] = (cen['100s']*8) + (cen['50s']*4)
+    cen.sort_values(by='points',inplace=True,ascending=False)
 
-fours = batsman_stats.sort_values(by='Four').tail(15)
-sixes = batsman_stats.sort_values(by='Six').tail(15)
-runs = batsman_stats.sort_values(by='Batsman Run').tail(15)
+    fours = batsman_stats.sort_values(by='Four').tail(15)
+    sixes = batsman_stats.sort_values(by='Six').tail(15)
+    runs = batsman_stats.sort_values(by='Batsman Run').tail(15)
 
-runs = batsman_stats[['Six','Four','Batsman Run','batsman']]
-runs['point'] = (runs['Six']*1) + (runs['Four']*0.5) + (runs['Batsman Run']*0.5)
-runs.sort_values(by='point',inplace=True,ascending=False)
+    runs = batsman_stats[['Six','Four','Batsman Run','batsman']]
+    runs['point'] = (runs['Six']*1) + (runs['Four']*0.5) + (runs['Batsman Run']*0.5)
+    runs.sort_values(by='point',inplace=True,ascending=False)
 
-final = pd.merge(cen,runs,on='batsman', how='inner')
-final['total_points']=final['points']+final['point']
-final['max'] = final['100s']+final['50s']
+    final = pd.merge(cen,runs,on='batsman', how='inner')
+    final['total_points']=final['points']+final['point']
+    final['max'] = final['100s']+final['50s']
 
-final.sort_values(by='total_points',ascending=False,inplace=True)
-best_batsman = final[['batsman','total_points']]
+    final.sort_values(by='total_points',ascending=False,inplace=True)
+    best_batsman = final[['batsman','total_points']]
 
-final['Batsman Run'] = (final['Batsman Run'])/(final['Batsman Run'].max()/100)
-final['Six'] = (final['Six'])/(final['Six'].max()/100)
-final['Four'] = (final['Four'])/(final['Four'].max()/100)
-final['max'] = (final['max'])/(final['max'].max()/100)
-final['total_points'] = (final['total_points'])/(final['total_points'].max()/100)
+    final['Batsman Run'] = (final['Batsman Run'])/(final['Batsman Run'].max()/100)
+    final['Six'] = (final['Six'])/(final['Six'].max()/100)
+    final['Four'] = (final['Four'])/(final['Four'].max()/100)
+    final['max'] = (final['max'])/(final['max'].max()/100)
+    final['total_points'] = (final['total_points'])/(final['total_points'].max()/100)
 
-x = final[final["batsman"] == "V Kohli"]
-y = final[final["batsman"] == "RG Sharma"]
-z = final[final["batsman"] == "SK Raina"]
+    x = final[final["batsman"] == "V Kohli"]
+    y = final[final["batsman"] == "RG Sharma"]
+    z = final[final["batsman"] == "SK Raina"]
 
-field = field_stats[['fielder','stump','catch','run_out']]
+    field = field_stats[['fielder','stump','catch','run_out']]
 
-field1 = field[(field['stump'] > 0)]
-field2 = field[~(field['stump'] > 0)]
+    field1 = field[(field['stump'] > 0)]
+    field2 = field[~(field['stump'] > 0)]
 
-field1['points'] = (field1['catch']*4) + (field1['stump']*6) + (field1['run_out']*2)
-field2['points'] = (field2['catch']*4) + (field2['stump']*6) + (field2['run_out']*6)
+    field1['points'] = (field1['catch']*4) + (field1['stump']*6) + (field1['run_out']*2)
+    field2['points'] = (field2['catch']*4) + (field2['stump']*6) + (field2['run_out']*6)
 
-field = pd.concat([field1, field2])
-field.sort_values(by='points',ascending=False,inplace=True)
+    field = pd.concat([field1, field2])
+    field.sort_values(by='points',ascending=False,inplace=True)
 
-field1.sort_values(by='points',ascending=False,inplace=True)
-field2.sort_values(by='points',ascending=False,inplace=True)
+    field1.sort_values(by='points',ascending=False,inplace=True)
+    field2.sort_values(by='points',ascending=False,inplace=True)
 
-best_fielder = field[['fielder','points']]
+    best_fielder = field[['fielder','points']]
 
-haul5 = bowlers_stats.sort_values(by='haul_5',ascending=False).head(10)
-haul4 = bowlers_stats.sort_values(by='haul_4',ascending=False).head(10)
+    haul5 = bowlers_stats.sort_values(by='haul_5',ascending=False).head(10)
+    haul4 = bowlers_stats.sort_values(by='haul_4',ascending=False).head(10)
 
-wicket = bowlers_stats.sort_values(by='wickets',ascending=False).head(10)
-caught_bowled = bowlers_stats.sort_values(by='caught and bowled',ascending=False).head(10)
+    wicket = bowlers_stats.sort_values(by='wickets',ascending=False).head(10)
+    caught_bowled = bowlers_stats.sort_values(by='caught and bowled',ascending=False).head(10)
 
-dismissals = bowlers_stats[['bowler','wickets','caught and bowled']]
-dismissals['dismissals'] = dismissals['wickets']+dismissals['caught and bowled']
+    dismissals = bowlers_stats[['bowler','wickets','caught and bowled']]
+    dismissals['dismissals'] = dismissals['wickets']+dismissals['caught and bowled']
 
-dismissals['points'] = (dismissals['wickets']*10) + (dismissals['caught and bowled']*14)
-dismissals.sort_values(by='points',ascending=False,inplace=True)
+    dismissals['points'] = (dismissals['wickets']*10) + (dismissals['caught and bowled']*14)
+    dismissals.sort_values(by='points',ascending=False,inplace=True)
 
-e1 = bowlers_stats.sort_values(by='eco_below4',ascending=False).head(10)
-e2 = bowlers_stats.sort_values(by='eco_4-5',ascending=False).head(10)
-e3 = bowlers_stats.sort_values(by='eco_5-6',ascending=False).head(10)
-e4 = bowlers_stats.sort_values(by='eco_6-9',ascending=False).head(10)
-e5 = bowlers_stats.sort_values(by='eco_9-10',ascending=False).head(10)
-e6 = bowlers_stats.sort_values(by='eco_10-11',ascending=False).head(10)
-e7 = bowlers_stats.sort_values(by='eco_above11',ascending=False).head(10)
-m = bowlers_stats.sort_values(by='maiden_overs',ascending=False).head(10)
+    e1 = bowlers_stats.sort_values(by='eco_below4',ascending=False).head(10)
+    e2 = bowlers_stats.sort_values(by='eco_4-5',ascending=False).head(10)
+    e3 = bowlers_stats.sort_values(by='eco_5-6',ascending=False).head(10)
+    e4 = bowlers_stats.sort_values(by='eco_6-9',ascending=False).head(10)
+    e5 = bowlers_stats.sort_values(by='eco_9-10',ascending=False).head(10)
+    e6 = bowlers_stats.sort_values(by='eco_10-11',ascending=False).head(10)
+    e7 = bowlers_stats.sort_values(by='eco_above11',ascending=False).head(10)
+    m = bowlers_stats.sort_values(by='maiden_overs',ascending=False).head(10)
 
-eco = bowlers_stats[['bowler','maiden_overs','eco_below4','eco_4-5','eco_5-6','eco_9-10','eco_10-11','eco_above11']]
+    eco = bowlers_stats[['bowler','maiden_overs','eco_below4','eco_4-5','eco_5-6','eco_9-10','eco_10-11','eco_above11']]
 
-eco['points'] = ((eco['eco_below4']*3)+(eco['eco_4-5']*2)+(eco['eco_5-6']*1)+
-                 (eco['eco_9-10']*(-1))+(eco['eco_10-11']*(-2))+(eco['eco_above11']*(-3))+(eco['maiden_overs']*4))
+    eco['points'] = ((eco['eco_below4']*3)+(eco['eco_4-5']*2)+(eco['eco_5-6']*1)+
+                     (eco['eco_9-10']*(-1))+(eco['eco_10-11']*(-2))+(eco['eco_above11']*(-3))+(eco['maiden_overs']*4))
 
-eco.sort_values(by='points',ascending=False,inplace=True)
+    eco.sort_values(by='points',ascending=False,inplace=True)
 
-final = bowlers_stats
-final['points_x'] = ((final['eco_below4']*3)+(final['eco_4-5']*2)+(final['eco_5-6']*1)+(final['eco_9-10']*(-1))+
-                   (final['eco_10-11']*(-2))+(final['eco_above11']*(-3))+(final['maiden_overs']*4))
+    final = bowlers_stats
+    final['points_x'] = ((final['eco_below4']*3)+(final['eco_4-5']*2)+(final['eco_5-6']*1)+(final['eco_9-10']*(-1))+
+                       (final['eco_10-11']*(-2))+(final['eco_above11']*(-3))+(final['maiden_overs']*4))
 
-final['points_y'] = (final['wickets']*10) + (final['caught and bowled']*14)
-final['points_z'] = (final['haul_4']*4) + (final['haul_5']*8)
+    final['points_y'] = (final['wickets']*10) + (final['caught and bowled']*14)
+    final['points_z'] = (final['haul_4']*4) + (final['haul_5']*8)
 
-final['points'] = final['points_x']+final['points_y']+final['points_z']
-final['dismissals'] = final['wickets']+final['caught and bowled']
+    final['points'] = final['points_x']+final['points_y']+final['points_z']
+    final['dismissals'] = final['wickets']+final['caught and bowled']
 
-final.sort_values(by='points',ascending=False,inplace=True)
-final_bowl = final.head(10)
+    final.sort_values(by='points',ascending=False,inplace=True)
+    final_bowl = final.head(10)
 
-best_bowler = final[['bowler','points']]
+    best_bowler = final[['bowler','points']]
 
-final['points_x'] = (final['points_x'])/(final['points_x'].max()/100)
-final['points_y'] = (final['points_y'])/(final['points_y'].max()/100)
-final['points_z'] = (final['points_z'])/(final['points_z'].max()/100)
-final['points'] = (final['points'])/(final['points'].max()/100)
+    final['points_x'] = (final['points_x'])/(final['points_x'].max()/100)
+    final['points_y'] = (final['points_y'])/(final['points_y'].max()/100)
+    final['points_z'] = (final['points_z'])/(final['points_z'].max()/100)
+    final['points'] = (final['points'])/(final['points'].max()/100)
 
-x_bowl = final[final["bowler"] == "Harbhajan Singh"]
-y_bowl = final[final["bowler"] == "SP Narine"]
-z_bowl = final[final["bowler"] == "R Ashwin"]
-w_bowl = final[final["bowler"] == "B Kumar"]
+    x_bowl = final[final["bowler"] == "Harbhajan Singh"]
+    y_bowl = final[final["bowler"] == "SP Narine"]
+    z_bowl = final[final["bowler"] == "R Ashwin"]
+    w_bowl = final[final["bowler"] == "B Kumar"]
 
-season_winner=matches.drop_duplicates(subset=['season'], keep='last')[['season','winner']].reset_index(drop=True)
-season_winner = season_winner['winner'].value_counts()
+    season_winner=matches.drop_duplicates(subset=['season'], keep='last')[['season','winner']].reset_index(drop=True)
+    season_winner = season_winner['winner'].value_counts()
 
-season_winner = season_winner.to_frame()
-season_winner.reset_index(inplace=True)
-season_winner.rename(columns={'index':'team'},inplace=True)
-finals=matches.drop_duplicates(subset=['season'],keep='last')
-finals=finals[['id','season','city','team1','team2','toss_winner','toss_decision','winner']]
-most_finals=pd.concat([finals['team1'],finals['team2']]).value_counts().reset_index()
-most_finals.rename({'index':'team',0:'count'},axis=1,inplace=True)
-xyz=finals['winner'].value_counts().reset_index()
+    season_winner = season_winner.to_frame()
+    season_winner.reset_index(inplace=True)
+    season_winner.rename(columns={'index':'team'},inplace=True)
+    finals=matches.drop_duplicates(subset=['season'],keep='last')
+    finals=finals[['id','season','city','team1','team2','toss_winner','toss_decision','winner']]
+    most_finals=pd.concat([finals['team1'],finals['team2']]).value_counts().reset_index()
+    most_finals.rename({'index':'team',0:'count'},axis=1,inplace=True)
+    xyz=finals['winner'].value_counts().reset_index()
 
-most_finals=most_finals.merge(xyz,left_on='team',right_on='index',how='outer')
-most_finals=most_finals.replace(np.NaN,0)
-most_finals.drop('index',axis=1,inplace=True)
-most_finals.set_index('team',inplace=True)
-most_finals.rename({'count':'finals_played','winner':'won_count'},inplace=True,axis=1)
-most_finals.reset_index(inplace=True)
+    most_finals=most_finals.merge(xyz,left_on='team',right_on='index',how='outer')
+    most_finals=most_finals.replace(np.NaN,0)
+    most_finals.drop('index',axis=1,inplace=True)
+    most_finals.set_index('team',inplace=True)
+    most_finals.rename({'count':'finals_played','winner':'won_count'},inplace=True,axis=1)
+    most_finals.reset_index(inplace=True)
 
+    return s_man_of_match,df_man_of_match,cen,half_cen,df_big,df_strike_rate,df_runs_per_match,df_total_runs,df_sixes,df_four,df_batsman_stat,batsman_stats,condition_catch,condition_run,condition_stump,condition_caught_bowled,s_catch,s_run,s_stump,s_caught_bowled,df_catch,df_run,df_stump,df_caught_bowled,df_field,field_stats,condition,df_bowlers,high,over_count,overs,bowlers,economy_rates,maiden_over,maidens,hauls,bowlers_stats,centuries,half_centuries,fours,sixes,runs,final,best_batsman,x,y,z,field,field1,field2,best_fielder,haul5,haul4,wicket,caught_bowled,dismissals,e1,e2,e3,e4,e5,e6,e7,m,eco,final,final_bowl,best_bowler,x_bowl,y_bowl,z_bowl,w_bowl,season_winner,finals,most_finals,xyz
 
+s_man_of_match,df_man_of_match,cen,half_cen,df_big,df_strike_rate,df_runs_per_match,df_total_runs,df_sixes,df_four,df_batsman_stat,batsman_stats,condition_catch,condition_run,condition_stump,condition_caught_bowled,s_catch,s_run,s_stump,s_caught_bowled,df_catch,df_run,df_stump,df_caught_bowled,df_field,field_stats,condition,df_bowlers,high,over_count,overs,bowlers,economy_rates,maiden_over,maidens,hauls,bowlers_stats,centuries,half_centuries,fours,sixes,runs,final,best_batsman,x,y,z,field,field1,field2,best_fielder,haul5,haul4,wicket,caught_bowled,dismissals,e1,e2,e3,e4,e5,e6,e7,m,eco,final,final_bowl,best_bowler,x_bowl,y_bowl,z_bowl,w_bowl,season_winner,finals,most_finals,xyz = preprocess(deliveries,matches)
+
+@st.cache(persist = True,allow_output_mutation=True)
 def pre(matches,team1,team2,ven):
     df = matches[['team1','team2','toss_decision','winner']]
     df['winner'].fillna(df['team1'],inplace = True)
@@ -287,21 +279,15 @@ def pre(matches,team1,team2,ven):
     return k
 
 
-def authenticate(username, password):
-    return username == "buddha" and password == "s4msara"
-
-
-
-
 st.title("🏆Win Predictor")
 val = np.asarray(['CSK','DC','KKR','MI','RCB','SRH','RR','KXIP'],dtype = object)
 
-ra = random.randint(55,65)
+ra = random.randint(57,63)
 team1 = st.selectbox("Select Team 1",val)
 if(team1):
     team2 = st.selectbox("Select Team 2",np.delete(val,list(val).index(team1)))
     if(team2):
-        venue = st.selectbox("Select Venue",np.asarray(['Home','Away']))
+        venue = st.selectbox("Select Venue of Team 1",np.asarray(['Home','Away']))
         if(venue):
             sc = st.button("Predict")
             if(sc):
@@ -309,6 +295,23 @@ if(team1):
                 st.write(winner[0]+" has "+str(ra) +"% chances of winning the match.")
 
 
+bat_bar = st.sidebar.button("🏏Batsman Analysis")
+bowl_bar = st.sidebar.button("🥎Bowler Analysis")
+field_bar = st.sidebar.button("🧤Fielder Analysis")
+team  = st.sidebar.button('🏟Match Analysis')
+runs_val = st.sidebar.button("💯Score Analysis")
+powerplay = st.sidebar.button("✋Powerplay Analysis")
+avg = st.sidebar.button("📊Average Score Analysis")
+fantasy = st.sidebar.button("🎯Fantasy team best players")
+
+bat_bar_main = st.button("🏏BATSMAN ANALYSIS")
+bowl_bar_main = st.button("🥎BOWLER ANALYSIS")
+field_bar_main = st.button("🧤FIELDER ANALYSIS")
+team_main  = st.button('🏟MATCH ANALYSIS')
+runs_val_main = st.button("💯SCORE ANALYSIS")
+powerplay_main = st.button("✋POWERPLAY ANALYSIS")
+avg_main = st.button("📊AVERAGE SCORE ANALYSIS")
+fantasy_main = st.button("🎯FANTASY TEAM BEST PLAYERS ")
 if(predict or predict_main):
     st.title("Winner Analysis")
     st.markdown("Teams with highest No. of Trophies")
