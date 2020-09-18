@@ -1,9 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import altair as alt
-import seaborn as sns
 import plotly.plotly as py
 from plotly import tools
 from plotly.offline import init_notebook_mode,iplot
@@ -13,12 +10,8 @@ import plotly.graph_objs as go
 
 import warnings
 warnings.filterwarnings("ignore")
-from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import plot_confusion_matrix,plot_roc_curve,plot_precision_recall_curve
-from sklearn.metrics import precision_score,recall_score
 
 
 
