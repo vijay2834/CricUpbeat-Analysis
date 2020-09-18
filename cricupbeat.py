@@ -17,7 +17,12 @@ from sklearn.preprocessing import LabelEncoder
 
 
 
-st.title("CricUpbeat Statistics")
+html_temp = """
+    <div style="background-color:#012154;padding:5px;border-radius:25px">
+    <h2 style="color:white;text-align:center;font-size:1.8rem;font-style:'Agency';font-weight:bold;font-family: 'Agency FB Bold',arial">CricUpbeat Statistics</h2>
+    </div>
+    """
+st.markdown(html_temp,unsafe_allow_html=True)
 
 
 
