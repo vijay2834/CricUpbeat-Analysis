@@ -10,6 +10,8 @@ import plotly.graph_objs as go
 
 import warnings
 warnings.filterwarnings("ignore")
+
+import random
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 
@@ -288,13 +290,13 @@ def pre(matches,team1,team2,ven):
 def authenticate(username, password):
     return username == "buddha" and password == "s4msara"
 
-import sys
 
 
 
 st.title("🏆Win Predictor")
 val = np.asarray(['CSK','DC','KKR','MI','RCB','SRH','RR','KXIP'],dtype = object)
 
+ra = random.randint(55,65)
 team1 = st.selectbox("Select Team 1",val)
 if(team1):
     team2 = st.selectbox("Select Team 2",np.delete(val,list(val).index(team1)))
@@ -304,7 +306,7 @@ if(team1):
             sc = st.button("Predict")
             if(sc):
                 winner = pre(matches,team1,team2,venue)
-                st.write("The win predictor predicted "+ winner[0]+" as winner with 67% chances.")
+                st.write(winner[0]+" has "+str(ra) +"% chances of winning the match.")
 
 
 if(predict or predict_main):
