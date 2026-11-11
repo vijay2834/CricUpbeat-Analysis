@@ -1,21 +1,21 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.plotly as py
-from plotly import tools
-from plotly.offline import init_notebook_mode,iplot
-init_notebook_mode(connected=False)
-import plotly.figure_factory as ff
+from pathlib import Path
+from plotly import subplots as tools  # tools.make_subplots kept for minimal diff
 import plotly.graph_objs as go
 
 import warnings
 warnings.filterwarnings("ignore")
 
-import random
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import LabelEncoder
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.pipeline import make_pipeline
 
 
+
+st.set_page_config(page_title="CricUpbeat Statistics", page_icon="🏏", layout="wide")
 
 html_temp = """
     <div style="background-color:#012154;padding:5px;border-radius:25px">
@@ -26,7 +26,7 @@ st.markdown(html_temp,unsafe_allow_html=True)
 
 
 
-st.sidebar.title("📈Statictics")
+st.sidebar.title("📈Statistics")
 predict = st.sidebar.button("🏆Win Predictor")
 bat_bar = st.sidebar.button("🏏Batsman Analysis")
 bowl_bar = st.sidebar.button("🥎Bowler Analysis")
@@ -40,15 +40,27 @@ fantasy = st.sidebar.button("🎯Fantasy team best players")
 
 
 
-@st.cache(persist = True,allow_output_mutation=True)
+DATA_DIR = Path(__file__).parent
+
+TEAM_FULL = ['Sunrisers Hyderabad', 'Mumbai Indians', 'Gujarat Lions',
+    'Rising Pune Supergiant', 'Royal Challengers Bangalore',
+    'Kolkata Knight Riders', 'Delhi Daredevils', 'Kings XI Punjab',
+    'Chennai Super Kings', 'Rajasthan Royals', 'Deccan Chargers',
+    'Kochi Tuskers Kerala', 'Pune Warriors', 'Rising Pune Supergiants', 'Delhi Capitals']
+TEAM_ABBR = ['SRH','MI','GL','RPS','RCB','KKR','DC','KXIP','CSK','RR','SRH','KTK','PW','RPS','DC']
+
+
+@st.cache_data
 def data():
-    df = pd.read_csv(r'https://raw.githubusercontent.com/vijay2834/IPL-data/master/deliveries.csv')
-    mat = pd.read_csv(r'https://raw.githubusercontent.com/vijay2834/IPL-data/master/matches.csv')
-
-    return df,mat
+    """Load IPL ball-by-ball and match data (2008-2019) and abbreviate team names."""
+    df = pd.read_csv(DATA_DIR / 'deliveries.csv')
+    mat = pd.read_csv(DATA_DIR / 'matches.csv')
+    return df.replace(TEAM_FULL, TEAM_ABBR), mat.replace(TEAM_FULL, TEAM_ABBR)
 deliveries,matches = data()
+deliveries = deliveries.copy()
+matches = matches.copy()
 
-@st.cache(persist = True,allow_output_mutation=True)
+@st.cache_data
 def preprocess(deliveries,matches):
     s_man_of_match = (matches.groupby(matches.player_of_match).player_of_match.count().
                   sort_values(ascending=False).head(15))
@@ -133,7 +145,7 @@ def preprocess(deliveries,matches):
     economy_rates=bowlers.groupby(['bowler']).agg({'eco_below4':'sum','eco_4-5':'sum','eco_5-6':'sum','eco_6-9':'sum','eco_9-10':'sum','eco_10-11':'sum','eco_above11':'sum'}).reset_index()
 
     maiden_over = over_count[over_count['total_runs']==0]
-    maidens = maiden_over['bowler'].value_counts().to_frame().reset_index().rename({'index':'bowler','bowler':'maiden_overs'},axis=1)
+    maidens = maiden_over['bowler'].value_counts().rename_axis('bowler').reset_index(name='maiden_overs')
 
     hauls=deliveries.groupby(['match_id', 'bowler']).agg({'player_dismissed':'count'}).reset_index()
     hauls = hauls[hauls['player_dismissed']>=4]
@@ -246,19 +258,14 @@ def preprocess(deliveries,matches):
     w_bowl = final[final["bowler"] == "B Kumar"]
 
     season_winner=matches.drop_duplicates(subset=['season'], keep='last')[['season','winner']].reset_index(drop=True)
-    season_winner = season_winner['winner'].value_counts()
-
-    season_winner = season_winner.to_frame()
-    season_winner.reset_index(inplace=True)
-    season_winner.rename(columns={'index':'team'},inplace=True)
+    season_winner = season_winner['winner'].value_counts().rename_axis('team').reset_index(name='winner')
     finals=matches.drop_duplicates(subset=['season'],keep='last')
     finals=finals[['id','season','city','team1','team2','toss_winner','toss_decision','winner']]
-    most_finals=pd.concat([finals['team1'],finals['team2']]).value_counts().reset_index()
-    most_finals.rename({'index':'team',0:'count'},axis=1,inplace=True)
-    xyz=finals['winner'].value_counts().reset_index()
+    most_finals=pd.concat([finals['team1'],finals['team2']]).value_counts().rename_axis('team').reset_index(name='count')
+    xyz=finals['winner'].value_counts().rename_axis('index').reset_index(name='winner')
 
     most_finals=most_finals.merge(xyz,left_on='team',right_on='index',how='outer')
-    most_finals=most_finals.replace(np.NaN,0)
+    most_finals=most_finals.replace(np.nan,0)
     most_finals.drop('index',axis=1,inplace=True)
     most_finals.set_index('team',inplace=True)
     most_finals.rename({'count':'finals_played','winner':'won_count'},inplace=True,axis=1)
@@ -268,42 +275,47 @@ def preprocess(deliveries,matches):
 
 s_man_of_match,df_man_of_match,cen,half_cen,df_big,df_strike_rate,df_runs_per_match,df_total_runs,df_sixes,df_four,df_batsman_stat,batsman_stats,condition_catch,condition_run,condition_stump,condition_caught_bowled,s_catch,s_run,s_stump,s_caught_bowled,df_catch,df_run,df_stump,df_caught_bowled,df_field,field_stats,condition,df_bowlers,high,over_count,overs,bowlers,economy_rates,maiden_over,maidens,hauls,bowlers_stats,centuries,half_centuries,fours,sixes,runs,final,best_batsman,x,y,z,field,field1,field2,best_fielder,haul5,haul4,wicket,caught_bowled,dismissals,e1,e2,e3,e4,e5,e6,e7,m,eco,final,final_bowl,best_bowler,x_bowl,y_bowl,z_bowl,w_bowl,season_winner,finals,most_finals,xyz = preprocess(deliveries,matches)
 
-@st.cache(persist = True,allow_output_mutation=True)
-def predictor_(matches,team1,team2,ven):
-    df = matches[['team1','team2','toss_decision','winner']]
-    df['winner'].fillna(df['team1'],inplace = True)
-    lbl = LabelEncoder()
-    rd = RandomForestClassifier()
-    x = df[['team1','team2','toss_decision']]
-    col  = ['team1','team2','toss_decision']
-    mapping = []
-    for val in col:
-        x[val] = lbl.fit_transform(x[val])
-        mapping.append(dict(zip(lbl.classes_,lbl.transform(lbl.classes_))))
-    y = df[['winner']]
-    v = {'Home':0,'Away':1}
-    rd.fit(x,y)
+@st.cache_resource
+def train_predictor(matches):
+    """Logistic-regression win model on team1, team2, toss winner and toss decision.
 
-    a = mapping[0][team1]
-    b = mapping[1][team2]
-    c = v[ven]
-    k = rd.predict([[a,b,c]])
-    z = rd.score(x,y)
-    return k
+    Target: did team1 win? Returns the fitted pipeline and its hold-out accuracy.
+    """
+    df = matches.dropna(subset=['winner']).copy()
+    df = df[df['result'] == 'normal']
+    df['toss_won_by_team1'] = (df['toss_winner'] == df['team1']).astype(int)
+    X = df[['team1', 'team2', 'toss_won_by_team1', 'toss_decision']]
+    y = (df['winner'] == df['team1']).astype(int)
+    X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+    model = make_pipeline(OneHotEncoder(handle_unknown='ignore'), LogisticRegression(max_iter=1000))
+    model.fit(X_tr, y_tr)
+    acc = model.score(X_te, y_te)
+    model.fit(X, y)  # refit on all data for serving
+    return model, acc
+
+
+def predict_win(model, team1, team2, toss_winner, toss_decision):
+    row = pd.DataFrame([{'team1': team1, 'team2': team2,
+                         'toss_won_by_team1': int(toss_winner == team1),
+                         'toss_decision': toss_decision}])
+    return float(model.predict_proba(row)[0, 1])
 
 
 st.title("🏆Win Predictor")
 val = np.asarray(['CSK','DC','KKR','MI','RCB','SRH','RR','KXIP'],dtype = object)
-venue = 'Home'
-ra = random.randint(57,63)
-team1 = st.selectbox("Select Home Team ",val)
-if(team1):
-    team2 = st.selectbox("Select Away Team ",np.delete(val,list(val).index(team1)))
-    if(team2):
-        sc = st.button("Predict")
-        if(sc):
-            winner = predictor_(matches,team1,team2,venue)
-            st.write(winner[0]+" has "+str(ra) +"% chances of winning the match.")
+model, holdout_acc = train_predictor(matches)
+c1, c2 = st.columns(2)
+team1 = c1.selectbox("Team 1 (batting order as listed)", val)
+team2 = c2.selectbox("Team 2", np.delete(val, list(val).index(team1)))
+c3, c4 = st.columns(2)
+toss_winner = c3.selectbox("Toss won by", [team1, team2])
+toss_decision = c4.selectbox("Toss decision", ['bat', 'field'])
+if st.button("Predict"):
+    p1 = predict_win(model, team1, team2, toss_winner, toss_decision)
+    fav, prob = (team1, p1) if p1 >= 0.5 else (team2, 1 - p1)
+    st.success(f"**{fav}** has a **{prob:.0%}** chance of winning ({team1} {p1:.0%} vs {team2} {1-p1:.0%}).")
+    st.caption(f"Logistic regression on IPL 2008-2019 matches · hold-out accuracy {holdout_acc:.0%}. "
+               "Team strength and toss explain only part of the outcome, so treat this as a baseline.")
 
 
 
@@ -578,7 +590,7 @@ if(field_bar ):
             showgrid=False,
             showline=True,
             linecolor='rgb(102, 102, 102)',
-            titlefont=dict(color='rgb(204, 204, 204)'),
+            title_font=dict(color='rgb(204, 204, 204)'),
             tickfont=dict(color='rgb(102, 102, 102)',),
             showticklabels=True,
             ticks='outside',
@@ -815,21 +827,11 @@ if(fantasy ):
 
 
 
-x=['Sunrisers Hyderabad', 'Mumbai Indians', 'Gujarat Lions',
-    'Rising Pune Supergiant', 'Royal Challengers Bangalore',
-    'Kolkata Knight Riders', 'Delhi Daredevils', 'Kings XI Punjab',
-    'Chennai Super Kings', 'Rajasthan Royals', 'Deccan Chargers',
-    'Kochi Tuskers Kerala', 'Pune Warriors', 'Rising Pune Supergiants', 'Delhi Capitals']
-
-y = ['SRH','MI','GL','RPS','RCB','KKR','DC','KXIP','CSK','RR','SRH','KTK','PW','RPS','DC']
-
-matches.replace(x,y,inplace = True)
-deliveries.replace(x,y,inplace = True)
 
 matches_played=pd.concat([matches['team1'],matches['team2']])
-matches_played=matches_played.value_counts().reset_index()
-matches_played.columns=['Team','Total Matches']
-matches_played['wins']=matches['winner'].value_counts().reset_index()['winner']
+matches_played=matches_played.value_counts().rename_axis('Team').reset_index(name='Total Matches')
+# align wins by team name (previously aligned by row position, which mismatched teams)
+matches_played['wins']=matches_played['Team'].map(matches['winner'].value_counts()).fillna(0).astype(int)
 
 matches_played.set_index('Team',inplace=True)
 matches_played.reset_index().head(8)
@@ -840,7 +842,7 @@ ser = pd.Series(venue_matches['id'])
 
 ump=pd.concat([matches['umpire1'],matches['umpire2']])
 ump=ump.value_counts()
-umps=ump.to_frame().reset_index()
+umps=ump.rename_axis('index').reset_index(name=0)
 
 if(team):
     st.title("Team Analysis")
@@ -933,8 +935,8 @@ high_scores1=high_scores1[high_scores1['inning1_runs']>=200]
 high_scores1['is_score_chased']=1
 high_scores1['is_score_chased'] = np.where(high_scores1['inning1_runs']<=high_scores1['inning2_runs'], 'yes', 'no')
 
-slices=high_scores1['is_score_chased'].value_counts().reset_index().is_score_chased
-list(slices)
+_chased=high_scores1['is_score_chased'].value_counts()
+slices=[int(_chased.get('no',0)), int(_chased.get('yes',0))]
 labels=['No','Yes']
 
 
